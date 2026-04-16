@@ -1,33 +1,68 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
+  // Definition of instances
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  final CollectionReference items = FirebaseFirestore.instance.collection('item');
+  // Define data reference
+  late final CollectionReference items = _db.collection('items');
 
-  // create item
-  Future<void> insertItem(String itemName){
+  // Create item linked to the current user
+  Future<void> insertItem(String itemName, int price, DateTime userDate) {
+    final uid = _auth.currentUser?.uid;
+    
+    if (uid == null) throw Exception("User must be logged in to add items");
+
     return items.add({
       'itemName': itemName,
-      'timestamp': Timestamp.now(),
+      'itemPrice': price,
+      'userId': uid,
+      'userDate': userDate,
+      'timestamp': FieldValue.serverTimestamp(), 
     });
   }
 
-  // read item
+  // Read items only for the currently logged-in user
   Stream<QuerySnapshot> getItemStream() {
-    final itemStream = items.orderBy('timestamp', descending: true).snapshots();
-    return itemStream;
+    final uid = _auth.currentUser?.uid;
+
+    if (uid == null) return const Stream.empty();
+
+    return items
+        .where('userId', isEqualTo: uid)
+        .orderBy('userDate', descending: true) // Sort by the actual expense date
+        .snapshots();
   }
 
-  // update item
-  Future<void> updateItem(String itemID, String newItemName){
+  // Update item
+  Future<void> updateItem(String itemID, String newItemName, int newPrice) {
     return items.doc(itemID).update({
       'itemName': newItemName,
-      'timestamp': Timestamp.now(),
+      'itemPrice': newPrice,
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
-  // delete item
-  Future<void> deleteItem(String itemID){
+  // Delete item
+  Future<void> deleteItem(String itemID) {
     return items.doc(itemID).delete();
+  }
+
+  // Get the budget document for the current user
+  Stream<DocumentSnapshot> getBudgetStream() {
+    final uid = _auth.currentUser?.uid;
+    return _db.collection('users').doc(uid).snapshots();
+  }
+
+  // Set or update the budget
+  Future<void> setBudget(double amount) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+    
+    await _db.collection('users').doc(uid).set({
+      'monthlyBudget': amount,
+    }, SetOptions(merge: true));
   }
 }
