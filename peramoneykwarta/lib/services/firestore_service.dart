@@ -37,10 +37,11 @@ class FirestoreService {
   }
 
   // Update item
-  Future<void> updateItem(String itemID, String newItemName, int newPrice) {
+  Future<void> updateItem(String itemID, String newItemName, int newPrice, DateTime selectedDate) {
     return items.doc(itemID).update({
       'itemName': newItemName,
       'itemPrice': newPrice,
+      'userDate': selectedDate,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
