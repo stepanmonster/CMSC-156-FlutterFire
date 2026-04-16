@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "558116573581",
+    "project_id": "peramoneykwarta",
+    "storage_bucket": "peramoneykwarta.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:558116573581:android:86e310a6494a8c24f12dc4",
+        "android_client_info": {
+          "package_name": "com.example.peramoneykwarta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8iN0l4nOFBEVd0w_OYjOg_aHab9eo4H8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
