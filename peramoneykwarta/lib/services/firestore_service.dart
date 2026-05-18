@@ -9,18 +9,17 @@ class FirestoreService {
   // Define data reference
   late final CollectionReference items = _db.collection('items');
 
-  // Create item linked to the current user
-  Future<void> insertItem(String itemName, int price, DateTime userDate) {
+  Future<void> insertItem(String itemName, int price, DateTime userDate) async {
     final uid = _auth.currentUser?.uid;
-    
+
     if (uid == null) throw Exception("User must be logged in to add items");
 
-    return items.add({
+    await items.add({
       'itemName': itemName,
       'itemPrice': price,
       'userId': uid,
       'userDate': userDate,
-      'timestamp': FieldValue.serverTimestamp(), 
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
@@ -61,9 +60,13 @@ class FirestoreService {
   Future<void> setBudget(double amount) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-    
+
+    final now = DateTime.now();
+    final monthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
     await _db.collection('users').doc(uid).set({
       'monthlyBudget': amount,
+      'budgetHistory.$monthKey': amount,
     }, SetOptions(merge: true));
   }
 }

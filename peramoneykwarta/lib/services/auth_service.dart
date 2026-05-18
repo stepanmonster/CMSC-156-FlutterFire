@@ -26,11 +26,8 @@ class AuthService {
   Future<void> signUpWithEmail(
     String email,
     String password,
-    String name, {
-    bool isConductor = false,
-    String? conductorLicense,
-    String? employeeNumber,
-  }) async {
+    String name,
+  ) async {
     // 1. Create the Auth user
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email.trim().toLowerCase(), // Trim and lowercase here too
@@ -56,7 +53,7 @@ class AuthService {
         password: password.trim(),
       );
       return result.user;
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       rethrow;
     }
   }

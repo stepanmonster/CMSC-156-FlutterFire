@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/firestore_service.dart';
+import '../components/app_snackbar.dart';
+import '../components/styled_fields.dart';
+import '../theme/app_theme.dart';
 
 class AddItemModal extends StatefulWidget {
   final String? itemID;
@@ -62,11 +65,11 @@ class _AddItemModalState extends State<AddItemModal> {
     final price = int.tryParse(priceText);
 
     if (name.isEmpty) {
-      _showSnackBar("Please enter an item name");
+      AppSnackbar.show(context, "Please enter an item name");
       return;
     }
     if (price == null || price <= 0) {
-      _showSnackBar("Please enter a valid price greater than 0");
+      AppSnackbar.show(context, "Please enter a valid price greater than 0");
       return;
     }
 
@@ -74,33 +77,15 @@ class _AddItemModalState extends State<AddItemModal> {
 
     try {
       if (widget.itemID == null) {
-        firestoreService.insertItem(name, price, _selectedDate);
+        await firestoreService.insertItem(name, price, _selectedDate);
       } else {
-        firestoreService.updateItem(widget.itemID!, name, price, _selectedDate);
+        await firestoreService.updateItem(widget.itemID!, name, price, _selectedDate);
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      _showSnackBar("Failed to save: $e");
+      AppSnackbar.show(context, "Failed to save: $e");
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message, style: const TextStyle(fontSize: 14))),
-          ],
-        ),
-        backgroundColor: const Color(0xFFE53E3E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   Future<void> _pickDate() async {
@@ -110,18 +95,18 @@ class _AddItemModalState extends State<AddItemModal> {
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
-      builder: (context, child) {
+              builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0F172A),
+              primary: AppTheme.surfaceDark,
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface: Color(0xFF0F172A),
+              onSurface: AppTheme.surfaceDark,
             ),
-            dialogTheme: const DialogThemeData(
+            dialogTheme: DialogThemeData(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(20)),
+                borderRadius: BorderRadius.circular(AppTheme.radiusXl),
               ),
             ),
           ),
@@ -162,7 +147,7 @@ class _AddItemModalState extends State<AddItemModal> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 24),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
+                    color: AppTheme.borderLight,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -175,7 +160,7 @@ class _AddItemModalState extends State<AddItemModal> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
+                      color: AppTheme.surfaceDark,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -193,7 +178,7 @@ class _AddItemModalState extends State<AddItemModal> {
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
+                          color: AppTheme.textPrimary,
                           letterSpacing: -0.3,
                         ),
                       ),
@@ -201,7 +186,7 @@ class _AddItemModalState extends State<AddItemModal> {
                         isEditing ? "Edit the details below" : "Track what you spent",
                         style: const TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF94A3B8),
+                          color: AppTheme.textMuted,
                         ),
                       ),
                     ],
@@ -212,24 +197,24 @@ class _AddItemModalState extends State<AddItemModal> {
               const SizedBox(height: 28),
 
               // Item Name field
-              _FieldLabel(label: "Item Name"),
+              FieldLabel(label: "Item Name"),
               const SizedBox(height: 8),
-              _StyledTextField(
+              StyledTextField(
                 controller: _nameController,
-                hintText: "e.g. Lunch, Grab ride, Coffee...",
-                prefixIcon: Icons.receipt_long_rounded,
+                hint: "e.g. Lunch, Grab ride, Coffee...",
+                icon: Icons.receipt_long_rounded,
                 autofocus: true,
               ),
 
               const SizedBox(height: 20),
 
               // Price field
-              _FieldLabel(label: "Amount (₱)"),
+              FieldLabel(label: "Amount (₱)"),
               const SizedBox(height: 8),
-              _StyledTextField(
+              StyledTextField(
                 controller: _priceController,
-                hintText: "0",
-                prefixIcon: Icons.payments_rounded,
+                hint: "0",
+                icon: Icons.payments_rounded,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
@@ -237,23 +222,23 @@ class _AddItemModalState extends State<AddItemModal> {
               const SizedBox(height: 20),
 
               // Date picker
-              _FieldLabel(label: "Date"),
+              FieldLabel(label: "Date"),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: _pickDate,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                    color: AppTheme.background,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(color: AppTheme.borderLight, width: 1.5),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.calendar_today_rounded,
                         size: 18,
-                        color: const Color(0xFF64748B),
+                        color: AppTheme.textSecondary,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -261,7 +246,7 @@ class _AddItemModalState extends State<AddItemModal> {
                           _formattedDate,
                           style: const TextStyle(
                             fontSize: 15,
-                            color: Color(0xFF0F172A),
+                            color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -270,7 +255,7 @@ class _AddItemModalState extends State<AddItemModal> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEFF6FF),
+                            color: Color(0xFFEFF6FF),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
@@ -285,7 +270,7 @@ class _AddItemModalState extends State<AddItemModal> {
                       else
                         const Icon(
                           Icons.chevron_right_rounded,
-                          color: Color(0xFF94A3B8),
+                          color: AppTheme.textMuted,
                           size: 20,
                         ),
                     ],
@@ -304,8 +289,8 @@ class _AddItemModalState extends State<AddItemModal> {
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          side: const BorderSide(color: AppTheme.borderLight, width: 1.5),
                         ),
                       ),
                       child: const Text(
@@ -313,7 +298,7 @@ class _AddItemModalState extends State<AddItemModal> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                     ),
@@ -324,12 +309,12 @@ class _AddItemModalState extends State<AddItemModal> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleSubmit,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
+                        backgroundColor: AppTheme.surfaceDark,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                         ),
                         disabledBackgroundColor: const Color(0xFF475569),
                       ),
@@ -362,80 +347,3 @@ class _AddItemModalState extends State<AddItemModal> {
   }
 }
 
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  const _FieldLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF475569),
-        letterSpacing: 0.2,
-      ),
-    );
-  }
-}
-
-class _StyledTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final IconData prefixIcon;
-  final TextInputType? keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-  final bool autofocus;
-
-  const _StyledTextField({
-    required this.controller,
-    required this.hintText,
-    required this.prefixIcon,
-    this.keyboardType,
-    this.inputFormatters,
-    this.autofocus = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      autofocus: autofocus,
-      style: const TextStyle(
-        fontSize: 15,
-        color: Color(0xFF0F172A),
-        fontWeight: FontWeight.w500,
-      ),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(
-          color: Color(0xFFCBD5E1),
-          fontWeight: FontWeight.w400,
-        ),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 14, right: 10),
-          child: Icon(prefixIcon, size: 18, color: const Color(0xFF94A3B8)),
-        ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF0F172A), width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-    );
-  }
-}

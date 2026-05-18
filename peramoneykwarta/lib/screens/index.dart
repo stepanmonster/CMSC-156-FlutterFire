@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../viewmodels/authVM.dart';
+import '../theme/app_theme.dart';
 import 'expenses_tab.dart';
 import 'budget_tab.dart';
 import '../components/add_item_modal.dart';
@@ -45,29 +48,51 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Sign out?", style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        ),
+        title: const Text(
+          "Sign out?",
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textPrimary,
+          ),
+        ),
         content: Text(
           "You'll need to sign in again to access your expenses.",
-          style: TextStyle(color: Colors.grey[600], height: 1.4),
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text("Cancel", style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w600)),
+            child: Text(
+              "Cancel",
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              FirebaseAuth.instance.signOut();
+              context.read<AuthViewModel>().signOut();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F172A),
+              backgroundColor: AppTheme.surfaceDark,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
               elevation: 0,
             ),
-            child: const Text("Sign Out", style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              "Sign Out",
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -77,9 +102,9 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7F4),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: AppTheme.surfaceDark,
         foregroundColor: Colors.white,
         elevation: 0,
         titleSpacing: 20,
@@ -89,10 +114,14 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
+                color: Colors.white.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.account_balance_wallet_rounded, size: 17, color: Colors.white),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                size: 17,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(width: 10),
             const Text(
@@ -115,10 +144,14 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
-                child: const Icon(Icons.logout_rounded, size: 18, color: Colors.white),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
               ),
               tooltip: "Sign out",
             ),
@@ -130,21 +163,27 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TabBar(
               controller: _tabController,
               indicator: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
-              labelColor: const Color(0xFF0F172A),
-              unselectedLabelColor: Colors.white.withOpacity(0.7),
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              labelColor: AppTheme.textPrimary,
+              unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
               padding: const EdgeInsets.all(3),
               tabs: const [
                 Tab(
@@ -186,13 +225,24 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
         child: FloatingActionButton.extended(
-          backgroundColor: const Color(0xFF0F172A),
+          backgroundColor: AppTheme.surfaceDark,
           foregroundColor: Colors.white,
           elevation: 4,
-          onPressed: () => _showAddExpenseModal(context),
+          onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _showAddExpenseModal(context);
+                        },
           icon: const Icon(Icons.add_rounded, size: 22),
-          label: const Text("Add Expense", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          label: const Text(
+            "Add Expense",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          ),
         ),
       ),
     );

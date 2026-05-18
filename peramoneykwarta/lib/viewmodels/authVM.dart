@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 
 class AuthViewModel extends ChangeNotifier {
@@ -32,6 +31,10 @@ class AuthViewModel extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  Future<void> signOut() async {
+    await _authService.signOut();
   }
 
   Future<bool> signUp(String email, String password, String name) async {

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/authVM.dart';
+import '../components/styled_fields.dart';
+import '../components/app_snackbar.dart';
+import '../theme/app_theme.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -40,6 +44,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   }
 
   Future<void> _handleLogin() async {
+    HapticFeedback.lightImpact();
     final authViewModel = context.read<AuthViewModel>();
     final success = await authViewModel.signIn(
       _emailController.text.trim(),
@@ -47,27 +52,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     );
     if (!mounted) return;
     if (!success) {
-      _showSnackBar(authViewModel.errorMessage ?? "Login failed");
+      AppSnackbar.show(context, authViewModel.errorMessage ?? "Login failed");
       authViewModel.clearError();
     }
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 18),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w500))),
-          ],
-        ),
-        backgroundColor: const Color(0xFFEF4444),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   @override
@@ -75,7 +62,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     final isLoading = context.watch<AuthViewModel>().isLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7F4),
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnim,
@@ -96,11 +83,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           width: 72,
                           height: 72,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A),
+                            color: AppTheme.surfaceDark,
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF0F172A).withOpacity(0.25),
+                                color: AppTheme.surfaceDark.withValues(alpha: 0.25),
                                 blurRadius: 24,
                                 offset: const Offset(0, 8),
                               ),
@@ -118,7 +105,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
+                            color: AppTheme.textPrimary,
                             letterSpacing: -0.3,
                           ),
                         ),
@@ -127,7 +114,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           "Track every peso, every day",
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[500],
+                            color: AppTheme.textSecondary,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
@@ -143,7 +130,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      color: AppTheme.textPrimary,
                       letterSpacing: -0.8,
                       height: 1.1,
                     ),
@@ -151,15 +138,19 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   const SizedBox(height: 6),
                   Text(
                     "Sign in to continue managing your expenses.",
-                    style: TextStyle(color: Colors.grey[500], fontSize: 15, height: 1.4),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 15,
+                      height: 1.4,
+                    ),
                   ),
 
                   const SizedBox(height: 36),
 
                   // Email Field
-                  _FieldLabel(label: "Email address"),
+                  FieldLabel(label: "Email address"),
                   const SizedBox(height: 8),
-                  _StyledTextField(
+                  StyledTextField(
                     controller: _emailController,
                     hint: "you@example.com",
                     icon: Icons.email_outlined,
@@ -169,9 +160,9 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   const SizedBox(height: 20),
 
                   // Password Field
-                  _FieldLabel(label: "Password"),
+                  FieldLabel(label: "Password"),
                   const SizedBox(height: 8),
-                  _StyledTextField(
+                  StyledTextField(
                     controller: _passwordController,
                     hint: "Enter your password",
                     icon: Icons.lock_outline_rounded,
@@ -179,7 +170,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: Colors.grey[500],
+                        color: AppTheme.textMuted,
                         size: 20,
                       ),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -195,10 +186,12 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     child: ElevatedButton(
                       onPressed: isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
+                        backgroundColor: AppTheme.surfaceDark,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFF0F172A).withOpacity(0.5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        disabledBackgroundColor: AppTheme.surfaceDark.withValues(alpha: 0.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        ),
                         elevation: 0,
                       ),
                       child: isLoading
@@ -212,7 +205,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                             )
                           : const Text(
                               "Sign In",
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.2),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
                             ),
                     ),
                   ),
@@ -225,7 +222,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     children: [
                       Text(
                         "Don't have an account? ",
-                        style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                       GestureDetector(
                         onTap: () => Navigator.push(
@@ -235,7 +235,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         child: const Text(
                           "Create one",
                           style: TextStyle(
-                            color: Color(0xFF0F172A),
+                            color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                           ),
@@ -247,73 +247,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  const _FieldLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontWeight: FontWeight.w600,
-        fontSize: 13,
-        color: Color(0xFF374151),
-        letterSpacing: 0.1,
-      ),
-    );
-  }
-}
-
-class _StyledTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool obscure;
-  final Widget? suffixIcon;
-  final TextInputType? keyboardType;
-
-  const _StyledTextField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    this.obscure = false,
-    this.suffixIcon,
-    this.keyboardType,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w400),
-        prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey[200]!, width: 1.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey[200]!, width: 1.5),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF0F172A), width: 2),
         ),
       ),
     );

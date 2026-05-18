@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/authVM.dart';
+import '../components/styled_fields.dart';
+import '../components/app_snackbar.dart';
+import '../theme/app_theme.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -25,7 +29,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 800),
     );
     _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
@@ -44,6 +48,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
   }
 
   Future<void> _handleSignUp() async {
+    HapticFeedback.lightImpact();
     final authViewModel = context.read<AuthViewModel>();
 
     final name = _nameController.text.trim();
@@ -52,50 +57,27 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
     final confirmPassword = _confirmPasswordController.text.trim();
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      _showSnackBar("Please fill in all fields", isError: true);
+      AppSnackbar.show(context, "Please fill in all fields");
       return;
     }
     if (password != confirmPassword) {
-      _showSnackBar("Passwords do not match", isError: true);
+      AppSnackbar.show(context, "Passwords do not match");
       return;
     }
     if (password.length < 6) {
-      _showSnackBar("Password must be at least 6 characters", isError: true);
+      AppSnackbar.show(context, "Password must be at least 6 characters");
       return;
     }
 
     final success = await authViewModel.signUp(email, password, name);
     if (mounted) {
       if (success) {
-        _showSnackBar("Account created successfully!", isError: false);
-        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+        AppSnackbar.show(context, "Account created successfully!", isError: false);
       } else {
-        _showSnackBar(authViewModel.errorMessage ?? "Sign up failed", isError: true);
+        AppSnackbar.show(context, authViewModel.errorMessage ?? "Sign up failed");
         authViewModel.clearError();
       }
     }
-  }
-
-  void _showSnackBar(String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: Colors.white,
-              size: 18,
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w500))),
-          ],
-        ),
-        backgroundColor: isError ? const Color(0xFFEF4444) : const Color(0xFF22C55E),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   @override
@@ -103,9 +85,9 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
     final isLoading = context.watch<AuthViewModel>().isLoading;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7F4),
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F7F4),
+        backgroundColor: AppTheme.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -114,16 +96,19 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             height: 38,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey[200]!, width: 1.5),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              border: Border.all(color: AppTheme.borderLight, width: 1.5),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF0F172A), size: 16),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppTheme.textPrimary,
+              size: 16,
+            ),
           ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SafeArea(
-        top: false,
         child: FadeTransition(
           opacity: _fadeAnim,
           child: SlideTransition(
@@ -138,7 +123,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
+                      color: AppTheme.textPrimary,
                       letterSpacing: -0.8,
                       height: 1.1,
                     ),
@@ -146,26 +131,38 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                   const SizedBox(height: 6),
                   Text(
                     "Start tracking your money today.",
-                    style: TextStyle(color: Colors.grey[500], fontSize: 15, height: 1.4),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 15,
+                      height: 1.4,
+                    ),
                   ),
 
                   const SizedBox(height: 36),
 
-                  // Progress indicator
+                  // Privacy banner
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withOpacity(0.04),
+                      color: AppTheme.surfaceDark.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.shield_outlined, size: 18, color: Color(0xFF0F172A)),
+                        const Icon(
+                          Icons.shield_outlined,
+                          size: 18,
+                          color: AppTheme.textPrimary,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             "Your data is encrypted and secure.",
-                            style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -174,9 +171,9 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
 
                   const SizedBox(height: 28),
 
-                  _FieldLabel(label: "Full name"),
+                  FieldLabel(label: "Full name"),
                   const SizedBox(height: 8),
-                  _StyledTextField(
+                  StyledTextField(
                     controller: _nameController,
                     hint: "Juan Dela Cruz",
                     icon: Icons.person_outline_rounded,
@@ -184,9 +181,9 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
 
                   const SizedBox(height: 20),
 
-                  _FieldLabel(label: "Email address"),
+                  FieldLabel(label: "Email address"),
                   const SizedBox(height: 8),
-                  _StyledTextField(
+                  StyledTextField(
                     controller: _emailController,
                     hint: "you@example.com",
                     icon: Icons.email_outlined,
@@ -195,9 +192,9 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
 
                   const SizedBox(height: 20),
 
-                  _FieldLabel(label: "Password"),
+                  FieldLabel(label: "Password"),
                   const SizedBox(height: 8),
-                  _StyledTextField(
+                  StyledTextField(
                     controller: _passwordController,
                     hint: "At least 6 characters",
                     icon: Icons.lock_outline_rounded,
@@ -205,7 +202,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: Colors.grey[400],
+                        color: AppTheme.textMuted,
                         size: 20,
                       ),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -214,9 +211,9 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
 
                   const SizedBox(height: 20),
 
-                  _FieldLabel(label: "Confirm password"),
+                  FieldLabel(label: "Confirm password"),
                   const SizedBox(height: 8),
-                  _StyledTextField(
+                  StyledTextField(
                     controller: _confirmPasswordController,
                     hint: "Re-enter your password",
                     icon: Icons.lock_outline_rounded,
@@ -224,7 +221,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: Colors.grey[400],
+                        color: AppTheme.textMuted,
                         size: 20,
                       ),
                       onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
@@ -239,21 +236,30 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                     child: ElevatedButton(
                       onPressed: isLoading ? null : _handleSignUp,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
+                        backgroundColor: AppTheme.surfaceDark,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFF0F172A).withOpacity(0.5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        disabledBackgroundColor: AppTheme.surfaceDark.withValues(alpha: 0.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        ),
                         elevation: 0,
                       ),
                       child: isLoading
                           ? const SizedBox(
                               width: 22,
                               height: 22,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
                             )
                           : const Text(
                               "Create Account",
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.2),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                              ),
                             ),
                     ),
                   ),
@@ -263,12 +269,22 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text("Already have an account? ", style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                      Text(
+                        "Already have an account? ",
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: const Text(
                           "Sign In",
-                          style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w700, fontSize: 14),
+                          style: TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -279,59 +295,6 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  const _FieldLabel({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF374151), letterSpacing: 0.1),
-    );
-  }
-}
-
-class _StyledTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool obscure;
-  final Widget? suffixIcon;
-  final TextInputType? keyboardType;
-
-  const _StyledTextField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    this.obscure = false,
-    this.suffixIcon,
-    this.keyboardType,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w400),
-        prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[200]!, width: 1.5)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey[200]!, width: 1.5)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF0F172A), width: 2)),
       ),
     );
   }

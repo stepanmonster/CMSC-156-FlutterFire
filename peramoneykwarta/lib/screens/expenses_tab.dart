@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../components/add_item_modal.dart';
+import '../components/app_snackbar.dart';
+import '../theme/app_theme.dart';
 
 class ExpensesTab extends StatefulWidget {
   const ExpensesTab({super.key});
@@ -22,7 +25,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
       children: [
         // Filter chips row
         Container(
-          color: const Color(0xFFF8F7F4),
+          color: AppTheme.background,
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -32,22 +35,25 @@ class _ExpensesTabState extends State<ExpensesTab> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: GestureDetector(
-                    onTap: () => setState(() => _filter = label),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _filter = label);
+                    },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF0F172A) : Colors.white,
+                        color: isSelected ? AppTheme.surfaceDark : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected ? const Color(0xFF0F172A) : Colors.grey[200]!,
+                          color: isSelected ? AppTheme.surfaceDark : AppTheme.borderLight,
                           width: 1.5,
                         ),
                       ),
                       child: Text(
                         label,
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[600],
+                          color: isSelected ? Colors.white : AppTheme.textSecondary,
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                           fontSize: 13,
                         ),
@@ -70,11 +76,23 @@ class _ExpensesTabState extends State<ExpensesTab> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[300]),
+                      Icon(Icons.wifi_off_rounded, size: 48, color: AppTheme.borderLight),
                       const SizedBox(height: 12),
-                      Text("Something went wrong", style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                      Text(
+                        "Something went wrong",
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text("${snapshot.error}", style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                      Text(
+                        "${snapshot.error}",
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -83,7 +101,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
               if (!snapshot.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(
-                    color: Color(0xFF0F172A),
+                    color: AppTheme.surfaceDark,
                     strokeWidth: 2.5,
                   ),
                 );
@@ -100,10 +118,14 @@ class _ExpensesTabState extends State<ExpensesTab> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
+                          color: AppTheme.borderLight,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.receipt_long_outlined, size: 38, color: Colors.grey[400]),
+                        child: Icon(
+                          Icons.receipt_long_outlined,
+                          size: 38,
+                          color: AppTheme.textMuted,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       const Text(
@@ -111,13 +133,16 @@ class _ExpensesTabState extends State<ExpensesTab> {
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
-                          color: Color(0xFF0F172A),
+                          color: AppTheme.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         "Tap the button below to log your first one.",
-                        style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -126,15 +151,17 @@ class _ExpensesTabState extends State<ExpensesTab> {
 
               // Filter logic
               final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
               final filtered = docs.where((d) {
                 final data = d.data() as Map<String, dynamic>;
                 final date = (data['userDate'] as Timestamp?)?.toDate() ??
                     (data['timestamp'] as Timestamp?)?.toDate() ??
                     now;
-                final difference = now.difference(date).inDays;
-                if (_filter == 'Today') return difference == 0;
-                if (_filter == 'Yesterday') return difference == 1;
-                if (_filter == 'This Week') return difference <= 7;
+                final itemDate = DateTime(date.year, date.month, date.day);
+                final diff = today.difference(itemDate).inDays;
+                if (_filter == 'Today') return diff == 0;
+                if (_filter == 'Yesterday') return diff == 1;
+                if (_filter == 'This Week') return diff >= 0 && diff < today.weekday;
                 return true;
               }).toList();
 
@@ -143,11 +170,15 @@ class _ExpensesTabState extends State<ExpensesTab> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.search_off_rounded, size: 48, color: Colors.grey[300]),
+                      Icon(Icons.search_off_rounded, size: 48, color: AppTheme.borderLight),
                       const SizedBox(height: 12),
                       Text(
                         "No expenses for $_filter",
-                        style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w600, fontSize: 15),
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
                       ),
                     ],
                   ),
@@ -155,19 +186,22 @@ class _ExpensesTabState extends State<ExpensesTab> {
               }
 
               // Compute total for this filter period
-              double totalShown = filtered.fold(0, (sum, d) {
+              double totalShown = filtered.fold(0, (total, d) {
                 final data = d.data() as Map<String, dynamic>;
-                return sum + ((data['itemPrice'] as num?)?.toDouble() ?? 0);
+                return total + ((data['itemPrice'] as num?)?.toDouble() ?? 0);
               });
 
-              return Column(
-                children: [
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Column(
+                  key: ValueKey(_filter),
+                  children: [
                   // Summary bar
                   Container(
                     margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A).withOpacity(0.05),
+                      color: AppTheme.surfaceDark.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -175,12 +209,16 @@ class _ExpensesTabState extends State<ExpensesTab> {
                       children: [
                         Text(
                           "${filtered.length} expense${filtered.length != 1 ? 's' : ''}",
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         Text(
                           "₱${totalShown.toStringAsFixed(2)}",
                           style: const TextStyle(
-                            color: Color(0xFF0F172A),
+                            color: AppTheme.textPrimary,
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
                           ),
@@ -193,7 +231,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
                     child: ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, i) {
                         final doc = filtered[i];
                         final data = doc.data() as Map<String, dynamic>;
@@ -209,45 +247,13 @@ class _ExpensesTabState extends State<ExpensesTab> {
                           price: price,
                           date: displayDate,
                           onEdit: () => _showEditModal(context, docId, name, price),
-                          onDelete: () async {
-                            try {
-                              await _db.deleteItem(docId);
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Row(
-                                      children: [
-                                        Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-                                        SizedBox(width: 10),
-                                        Text("Expense deleted", style: TextStyle(fontWeight: FontWeight.w500)),
-                                      ],
-                                    ),
-                                    backgroundColor: const Color(0xFF22C55E),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    margin: const EdgeInsets.all(16),
-                                  ),
-                                );
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("Error: $e"),
-                                    backgroundColor: const Color(0xFFEF4444),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    margin: const EdgeInsets.all(16),
-                                  ),
-                                );
-                              }
-                            }
-                          },
+                          onDelete: () => _confirmDelete(context, docId),
                         );
                       },
                     ),
                   ),
                 ],
+              ),
               );
             },
           ),
@@ -262,6 +268,68 @@ class _ExpensesTabState extends State<ExpensesTab> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddItemModal(itemID: id, initialName: name, initialPrice: price),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, String docId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        ),
+        title: const Text(
+          "Delete expense?",
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        content: Text(
+          "This action cannot be undone.",
+          style: TextStyle(
+            color: AppTheme.textSecondary,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "Cancel",
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await _db.deleteItem(docId);
+                if (!context.mounted) return;
+                AppSnackbar.show(context, "Expense deleted", isError: false);
+              } catch (e) {
+                if (!context.mounted) return;
+                AppSnackbar.show(context, "Error: $e");
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              elevation: 0,
+            ),
+            child: const Text(
+              "Delete",
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -293,8 +361,8 @@ class _ExpenseCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey[100]!, width: 1.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.borderLight, width: 1.5),
       ),
       child: Row(
         children: [
@@ -303,10 +371,14 @@ class _ExpenseCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFF0F172A).withOpacity(0.07),
+              color: AppTheme.surfaceDark.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.receipt_rounded, color: Color(0xFF0F172A), size: 20),
+            child: const Icon(
+              Icons.receipt_rounded,
+              color: AppTheme.textPrimary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
 
@@ -320,7 +392,7 @@ class _ExpenseCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: Color(0xFF0F172A),
+                    color: AppTheme.textPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -328,7 +400,11 @@ class _ExpenseCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   _formatDate(date),
-                  style: TextStyle(color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: AppTheme.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -343,7 +419,7 @@ class _ExpenseCard extends StatelessWidget {
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
-                  color: Color(0xFF0F172A),
+                  color: AppTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 2),
@@ -352,8 +428,14 @@ class _ExpenseCard extends StatelessWidget {
                 child: PopupMenuButton<String>(
                   padding: EdgeInsets.zero,
                   iconSize: 18,
-                  icon: Icon(Icons.more_horiz, color: Colors.grey[400], size: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  icon: Icon(
+                    Icons.more_horiz,
+                    color: AppTheme.textMuted,
+                    size: 18,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   onSelected: (value) {
                     if (value == 'delete') onDelete();
                     if (value == 'edit') onEdit();
@@ -363,7 +445,7 @@ class _ExpenseCard extends StatelessWidget {
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit_outlined, size: 16, color: Color(0xFF0F172A)),
+                          Icon(Icons.edit_outlined, size: 16, color: AppTheme.textPrimary),
                           SizedBox(width: 8),
                           Text("Edit", style: TextStyle(fontWeight: FontWeight.w600)),
                         ],
@@ -373,9 +455,15 @@ class _ExpenseCard extends StatelessWidget {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                          Icon(Icons.delete_outline_rounded, size: 16, color: AppTheme.errorRed),
                           SizedBox(width: 8),
-                          Text("Delete", style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+                          Text(
+                            "Delete",
+                            style: TextStyle(
+                              color: AppTheme.errorRed,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                     ),
