@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/index.dart';
 import 'screens/login_page.dart';
-import 'viewmodels/authVM.dart';
+import 'viewmodels/auth_vm.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

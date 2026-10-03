@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../viewmodels/authVM.dart';
+import '../viewmodels/auth_vm.dart';
 import '../theme/app_theme.dart';
 import 'expenses_tab.dart';
 import 'budget_tab.dart';

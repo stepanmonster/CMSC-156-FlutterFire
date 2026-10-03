@@ -126,8 +126,9 @@ class _AddItemModalState extends State<AddItemModal> {
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
       AppSnackbar.show(context, "Failed to save: $e");
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
