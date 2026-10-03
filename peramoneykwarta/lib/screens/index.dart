@@ -6,6 +6,8 @@ import '../theme/app_theme.dart';
 import 'expenses_tab.dart';
 import 'budget_tab.dart';
 import '../components/add_item_modal.dart';
+import '../components/page_transition.dart';
+import 'debts_page.dart';
 
 class IndexPage extends StatefulWidget {
   const IndexPage({super.key});
@@ -41,6 +43,14 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const AddItemModal(),
+    );
+  }
+
+  void _openDebts() {
+    HapticFeedback.lightImpact();
+    Navigator.push(
+      context,
+      FadeSlideRoute(page: const DebtsPage()),
     );
   }
 
@@ -136,6 +146,23 @@ class _IndexPageState extends State<IndexPage> with SingleTickerProviderStateMix
           ],
         ),
         actions: [
+          IconButton(
+            onPressed: _openDebts,
+            icon: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: const Icon(
+                Icons.handshake_outlined,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+            tooltip: "Debts",
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: IconButton(
