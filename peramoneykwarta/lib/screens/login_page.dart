@@ -5,6 +5,7 @@ import '../viewmodels/authVM.dart';
 import '../components/styled_fields.dart';
 import '../components/app_snackbar.dart';
 import '../theme/app_theme.dart';
+import '../components/page_transition.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -69,6 +70,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           child: SlideTransition(
             position: _slideAnim,
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,7 +232,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                       GestureDetector(
                         onTap: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const SignUpPage()),
+                          FadeSlideRoute(page: const SignUpPage()),
                         ),
                         child: const Text(
                           "Create one",

@@ -114,6 +114,7 @@ class _SignUpPageState extends State<SignUpPage> with SingleTickerProviderStateM
           child: SlideTransition(
             position: _slideAnim,
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

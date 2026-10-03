@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/format.dart';
 
 class BudgetTab extends StatefulWidget {
   const BudgetTab({super.key});
@@ -100,41 +101,59 @@ class _BudgetTabState extends State<BudgetTab> {
             final double progress = (totalSpent / monthlyBudget).clamp(0.0, 1.0);
             final bool isOverBudget = remaining < 0;
 
+            if (expenseSnapshot.hasData && expenseSnapshot.data!.docs.isEmpty && !budgetSnapshot.hasData) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+                child: Column(
+                  children: [
+                    _buildMonthSelector(),
+                    const SizedBox(height: 40),
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 88,
+                            height: 88,
+                            decoration: BoxDecoration(
+                              color: AppTheme.borderLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.pie_chart_outline_rounded,
+                              size: 40,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            "No expenses yet",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Your budget breakdown will appear here\nonce you start tracking.",
+                            textAlign: TextAlign.center,
+                            style: AppTheme.caption.copyWith(height: 1.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Month selector
-                  Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: _previousMonth,
-                          icon: const Icon(Icons.chevron_left),
-                          color: AppTheme.textPrimary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _monthLabel,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          onPressed: _isCurrentMonth ? null : _nextMonth,
-                          icon: const Icon(Icons.chevron_right),
-                          color: _isCurrentMonth
-                              ? AppTheme.borderLight
-                              : AppTheme.textPrimary,
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildMonthSelector(),
+
                   const SizedBox(height: 8),
 
                   // Hero spend card
@@ -146,90 +165,116 @@ class _BudgetTabState extends State<BudgetTab> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.surfaceDark.withValues(alpha: 0.2),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
+                          color: AppTheme.surfaceDark.withValues(alpha: 0.25),
+                          blurRadius: 32,
+                          offset: const Offset(0, 12),
                         ),
                       ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Stack(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        // Gradient overlay
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: RadialGradient(
+                                center: Alignment.topRight,
+                                radius: 1.5,
+                                colors: [
+                                  const Color(0xFF334155).withValues(alpha: 0.35),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Monthly Spending",
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isOverBudget
+                                        ? AppTheme.errorRed.withValues(alpha: 0.2)
+                                        : Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    isOverBudget
+                                        ? "Over budget"
+                                        : "${(progress * 100).toStringAsFixed(0)}% used",
+                                    style: TextStyle(
+                                      color: isOverBudget
+                                          ? const Color(0xFFFCA5A5)
+                                          : Colors.white.withValues(alpha: 0.8),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.0, end: totalSpent),
+                              duration: const Duration(milliseconds: 600),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, value, child) {
+                                return Text(
+                                  formatCurrency(value),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 38,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -1,
+                                  ),
+                                );
+                              },
+                            ),
                             Text(
-                              "Monthly Spending",
+                              "of ${formatCurrency(monthlyBudget)} budget",
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.65),
+                                color: Colors.white.withValues(alpha: 0.5),
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isOverBudget
-                                    ? AppTheme.errorRed.withValues(alpha: 0.2)
-                                    : Colors.white.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                isOverBudget
-                                    ? "Over budget"
-                                    : "${(progress * 100).toStringAsFixed(0)}% used",
-                                style: TextStyle(
-                                  color: isOverBudget
-                                      ? const Color(0xFFFCA5A5)
-                                      : Colors.white.withValues(alpha: 0.8),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                            const SizedBox(height: 20),
+                            TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0, end: progress),
+                              duration: const Duration(milliseconds: 800),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, value, child) {
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: LinearProgressIndicator(
+                                    value: value,
+                                    minHeight: 8,
+                                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      isOverBudget
+                                          ? AppTheme.errorRed
+                                          : progress > 0.75
+                                              ? AppTheme.warningAmber
+                                              : AppTheme.successGreen,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          "₱${totalSpent.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 38,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1,
-                          ),
-                        ),
-                        Text(
-                          "of ₱${monthlyBudget.toStringAsFixed(0)} budget",
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: progress),
-                          duration: const Duration(milliseconds: 800),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, value, child) {
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: LinearProgressIndicator(
-                                value: value,
-                                minHeight: 8,
-                                backgroundColor: Colors.white.withValues(alpha: 0.12),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  isOverBudget
-                                      ? AppTheme.errorRed
-                                      : progress > 0.75
-                                          ? AppTheme.warningAmber
-                                          : AppTheme.successGreen,
-                                ),
-                              ),
-                            );
-                          },
                         ),
                       ],
                     ),
@@ -243,7 +288,7 @@ class _BudgetTabState extends State<BudgetTab> {
                       Expanded(
                         child: _StatCard(
                           label: "Remaining",
-                          value: "₱${remaining.abs().toStringAsFixed(2)}",
+                          value: formatCurrency(remaining.abs()),
                           sublabel: isOverBudget
                               ? "over limit"
                               : isPastMonth
@@ -263,7 +308,7 @@ class _BudgetTabState extends State<BudgetTab> {
                         child: _StatCard(
                           label: isPastMonth ? "Avg Daily" : "Daily Allowance",
                           value: dailyAverage > 0
-                              ? "₱${dailyAverage.toStringAsFixed(2)}"
+                              ? formatCurrency(dailyAverage)
                               : "₱0",
                           sublabel: isPastMonth
                               ? "avg per day"
@@ -278,10 +323,9 @@ class _BudgetTabState extends State<BudgetTab> {
 
                   const SizedBox(height: 12),
 
-                  // Monthly limit card
                   _StatCard(
                     label: "Monthly Limit",
-                    value: "₱${monthlyBudget.toStringAsFixed(0)}",
+                    value: formatCurrency(monthlyBudget),
                     sublabel: "Tap below to update",
                     icon: Icons.account_balance_wallet_outlined,
                     iconColor: const Color(0xFF6366F1),
@@ -292,7 +336,6 @@ class _BudgetTabState extends State<BudgetTab> {
                   if (_isCurrentMonth) ...[
                     const SizedBox(height: 28),
 
-                    // Divider with label
                     Row(
                       children: [
                         Expanded(child: Divider(color: AppTheme.borderLight)),
@@ -313,7 +356,6 @@ class _BudgetTabState extends State<BudgetTab> {
 
                     const SizedBox(height: 20),
 
-                    // Update budget button
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -347,6 +389,38 @@ class _BudgetTabState extends State<BudgetTab> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildMonthSelector() {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: _previousMonth,
+            icon: const Icon(Icons.chevron_left),
+            color: AppTheme.textPrimary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _monthLabel,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: _isCurrentMonth ? null : _nextMonth,
+            icon: const Icon(Icons.chevron_right),
+            color: _isCurrentMonth
+                ? AppTheme.borderLight
+                : AppTheme.textPrimary,
+          ),
+        ],
+      ),
     );
   }
 

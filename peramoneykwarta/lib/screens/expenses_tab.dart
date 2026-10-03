@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../components/add_item_modal.dart';
 import '../components/app_snackbar.dart';
+import '../components/shimmer_loading.dart';
 import '../theme/app_theme.dart';
+import '../utils/format.dart';
 
 class ExpensesTab extends StatefulWidget {
   const ExpensesTab({super.key});
@@ -15,249 +17,331 @@ class ExpensesTab extends StatefulWidget {
 
 class _ExpensesTabState extends State<ExpensesTab> {
   final FirestoreService _db = FirestoreService();
+  final ScrollController _scrollController = ScrollController();
+  bool _showScrollToTop = false;
   String _filter = 'All';
 
   static const _filters = ['All', 'Today', 'Yesterday', 'This Week'];
 
   @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      final show = _scrollController.offset > 500;
+      if (show != _showScrollToTop) {
+        setState(() => _showScrollToTop = show);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
+    return Stack(
       children: [
-        // Filter chips row
-        Container(
-          color: AppTheme.background,
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _filters.map((label) {
-                final isSelected = _filter == label;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      setState(() => _filter = label);
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppTheme.surfaceDark : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected ? AppTheme.surfaceDark : AppTheme.borderLight,
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : AppTheme.textSecondary,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-
-        // Expenses List
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _db.getItemStream(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.wifi_off_rounded, size: 48, color: AppTheme.borderLight),
-                      const SizedBox(height: 12),
-                      Text(
-                        "Something went wrong",
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "${snapshot.error}",
-                        style: TextStyle(
-                          color: AppTheme.textMuted,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              if (!snapshot.hasData) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.surfaceDark,
-                    strokeWidth: 2.5,
-                  ),
-                );
-              }
-
-              var docs = snapshot.data!.docs;
-
-              if (docs.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppTheme.borderLight,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.receipt_long_outlined,
-                          size: 38,
-                          color: AppTheme.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        "No expenses yet",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "Tap the button below to log your first one.",
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              // Filter logic
-              final now = DateTime.now();
-              final today = DateTime(now.year, now.month, now.day);
-              final filtered = docs.where((d) {
-                final data = d.data() as Map<String, dynamic>;
-                final date = (data['userDate'] as Timestamp?)?.toDate() ??
-                    (data['timestamp'] as Timestamp?)?.toDate() ??
-                    now;
-                final itemDate = DateTime(date.year, date.month, date.day);
-                final diff = today.difference(itemDate).inDays;
-                if (_filter == 'Today') return diff == 0;
-                if (_filter == 'Yesterday') return diff == 1;
-                if (_filter == 'This Week') return diff >= 0 && diff < today.weekday;
-                return true;
-              }).toList();
-
-              if (filtered.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search_off_rounded, size: 48, color: AppTheme.borderLight),
-                      const SizedBox(height: 12),
-                      Text(
-                        "No expenses for $_filter",
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              // Compute total for this filter period
-              double totalShown = filtered.fold(0, (total, d) {
-                final data = d.data() as Map<String, dynamic>;
-                return total + ((data['itemPrice'] as num?)?.toDouble() ?? 0);
-              });
-
-              return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Column(
-                  key: ValueKey(_filter),
-                  children: [
-                  // Summary bar
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceDark.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "${filtered.length} expense${filtered.length != 1 ? 's' : ''}",
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+        Column(
+          children: [
+            Container(
+              color: AppTheme.background,
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _filters.map((label) {
+                    final isSelected = _filter == label;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          setState(() => _filter = label);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSelected ? 20 : 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected ? AppTheme.surfaceDark : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected ? AppTheme.surfaceDark : AppTheme.borderLight,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : AppTheme.textSecondary,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                        Text(
-                          "₱${totalShown.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _db.getItemStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: AppTheme.borderLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.wifi_off_rounded,
+                              size: 34,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Something went wrong",
+                            style: AppTheme.body.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Pull down to retry",
+                            style: AppTheme.caption,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData) {
+                    return const ShimmerList();
+                  }
+
+                  var docs = snapshot.data!.docs;
+
+                  if (docs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 88,
+                            height: 88,
+                            decoration: BoxDecoration(
+                              color: AppTheme.borderLight,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.borderLight.withValues(alpha: 0.5),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.receipt_long_outlined,
+                              size: 40,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            "No expenses yet",
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Every peso tracked builds better habits.\nTap the button below to log your first one.",
+                            textAlign: TextAlign.center,
+                            style: AppTheme.caption.copyWith(height: 1.5),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final now = DateTime.now();
+                  final today = DateTime(now.year, now.month, now.day);
+                  final filtered = docs.where((d) {
+                    final data = d.data() as Map<String, dynamic>;
+                    final date = (data['userDate'] as Timestamp?)?.toDate() ??
+                        (data['timestamp'] as Timestamp?)?.toDate() ??
+                        now;
+                    final itemDate = DateTime(date.year, date.month, date.day);
+                    final diff = today.difference(itemDate).inDays;
+                    if (_filter == 'Today') return diff == 0;
+                    if (_filter == 'Yesterday') return diff == 1;
+                    if (_filter == 'This Week') return diff >= 0 && diff < today.weekday;
+                    return true;
+                  }).toList();
+
+                  if (filtered.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: AppTheme.borderLight,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.search_off_rounded,
+                              size: 34,
+                              color: AppTheme.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "No expenses for $_filter",
+                            style: AppTheme.body.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Try a different filter.",
+                            style: AppTheme.caption,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  double totalShown = filtered.fold(0, (total, d) {
+                    final data = d.data() as Map<String, dynamic>;
+                    return total + ((data['itemPrice'] as num?)?.toDouble() ?? 0);
+                  });
+
+                  return AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Column(
+                      key: ValueKey(_filter),
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceDark.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "${filtered.length} expense${filtered.length != 1 ? 's' : ''}",
+                                style: AppTheme.caption,
+                              ),
+                              Text(
+                                formatCurrency(totalShown),
+                                style: const TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: () async {},
+                            child: ListView.separated(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 8),
+                              itemBuilder: (context, i) {
+                                final doc = filtered[i];
+                                final data = doc.data() as Map<String, dynamic>;
+                                final docId = doc.id;
+                                final String name = data['itemName'] ?? 'Unnamed Item';
+                                final int price = data['itemPrice'] ?? 0;
+                                final DateTime displayDate = (data['userDate'] as Timestamp?)?.toDate() ??
+                                    (data['timestamp'] as Timestamp?)?.toDate() ??
+                                    now;
+
+                                return TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: 0.0, end: 1.0),
+                                  duration: Duration(milliseconds: 300 + (i * 50).clamp(0, 300)),
+                                  curve: Curves.easeOut,
+                                  builder: (context, value, child) {
+                                    return Opacity(
+                                      opacity: value,
+                                      child: Transform.translate(
+                                        offset: Offset(0, 15 * (1 - value)),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: _ExpenseCard(
+                                    name: name,
+                                    price: price,
+                                    date: displayDate,
+                                    onEdit: () => _showEditModal(context, docId, name, price),
+                                    onDelete: () => _confirmDelete(context, docId),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
-                        final doc = filtered[i];
-                        final data = doc.data() as Map<String, dynamic>;
-                        final docId = doc.id;
-                        final String name = data['itemName'] ?? 'Unnamed Item';
-                        final int price = data['itemPrice'] ?? 0;
-                        final DateTime displayDate = (data['userDate'] as Timestamp?)?.toDate() ??
-                            (data['timestamp'] as Timestamp?)?.toDate() ??
-                            now;
-
-                        return _ExpenseCard(
-                          name: name,
-                          price: price,
-                          date: displayDate,
-                          onEdit: () => _showEditModal(context, docId, name, price),
-                          onDelete: () => _confirmDelete(context, docId),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-              );
-            },
-          ),
+            ),
+          ],
         ),
+
+        if (_showScrollToTop)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: AnimatedSlide(
+              offset: _showScrollToTop ? Offset.zero : const Offset(0, 3),
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              child: AnimatedOpacity(
+                opacity: _showScrollToTop ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: FloatingActionButton.small(
+                  backgroundColor: AppTheme.surfaceDark,
+                  foregroundColor: Colors.white,
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _scrollController.animateTo(
+                      0,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                    );
+                  },
+                  child: const Icon(Icons.keyboard_arrow_up_rounded),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -363,10 +447,16 @@ class _ExpenseCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.borderLight, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 44,
             height: 44,
@@ -381,8 +471,6 @@ class _ExpenseCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,13 +497,11 @@ class _ExpenseCard extends StatelessWidget {
               ],
             ),
           ),
-
-          // Price + Menu
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "₱$price",
+                formatCurrency(price.toDouble()),
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
