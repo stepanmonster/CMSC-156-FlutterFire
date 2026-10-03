@@ -50,6 +50,42 @@ class FirestoreService {
     return items.doc(itemID).delete();
   }
 
+  // Get frequent item name suggestions for the current user.
+  // Uses the same filter/sort as getItemStream() so the existing
+  // Firestore composite index (userId + userDate) applies.
+  Future<List<String>> getRecentItemNames({int limit = 8}) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return [];
+
+    final snap = await items
+        .where('userId', isEqualTo: uid)
+        .orderBy('userDate', descending: true)
+        .limit(100)
+        .get();
+
+    final frequency = <String, int>{};
+    final recency = <String, int>{};
+    var order = 0;
+
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final name = (data['itemName'] as String?)?.trim();
+      if (name == null || name.isEmpty) continue;
+      if (!recency.containsKey(name)) recency[name] = order;
+      frequency[name] = (frequency[name] ?? 0) + 1;
+      order++;
+    }
+
+    final names = frequency.keys.toList()
+      ..sort((a, b) {
+        final byFreq = frequency[b]!.compareTo(frequency[a]!);
+        if (byFreq != 0) return byFreq;
+        return recency[a]!.compareTo(recency[b]!);
+      });
+
+    return names.take(limit).toList();
+  }
+
   // Get the budget document for the current user
   Stream<DocumentSnapshot> getBudgetStream() {
     final uid = _auth.currentUser?.uid;
