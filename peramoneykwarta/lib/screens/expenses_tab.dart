@@ -7,6 +7,7 @@ import '../components/app_snackbar.dart';
 import '../components/shimmer_loading.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
+import '../utils/period_filter.dart';
 
 class ExpensesTab extends StatefulWidget {
   const ExpensesTab({super.key});
@@ -19,9 +20,15 @@ class _ExpensesTabState extends State<ExpensesTab> {
   final FirestoreService _db = FirestoreService();
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
-  String _filter = 'All';
+  PeriodScale _scale = PeriodScale.month;
+  DateTime _anchor = DateTime.now();
 
-  static const _filters = ['All', 'Today', 'Yesterday', 'This Week'];
+  static const _scaleLabels = {
+    PeriodScale.day: 'Day',
+    PeriodScale.week: 'Week',
+    PeriodScale.month: 'Month',
+    PeriodScale.all: 'All',
+  };
 
   @override
   void initState() {
@@ -46,50 +53,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
       children: [
         Column(
           children: [
-            Container(
-              color: AppTheme.background,
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _filters.map((label) {
-                    final isSelected = _filter == label;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          setState(() => _filter = label);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isSelected ? 20 : 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected ? AppTheme.surfaceDark : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isSelected ? AppTheme.surfaceDark : AppTheme.borderLight,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Text(
-                            label,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : AppTheme.textSecondary,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
+            _buildPeriodHeader(),
 
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
@@ -180,18 +144,14 @@ class _ExpensesTabState extends State<ExpensesTab> {
                   }
 
                   final now = DateTime.now();
-                  final today = DateTime(now.year, now.month, now.day);
+                  final range = periodRange(_scale, _anchor);
                   final filtered = docs.where((d) {
                     final data = d.data() as Map<String, dynamic>;
                     final date = (data['userDate'] as Timestamp?)?.toDate() ??
                         (data['timestamp'] as Timestamp?)?.toDate() ??
                         now;
-                    final itemDate = DateTime(date.year, date.month, date.day);
-                    final diff = today.difference(itemDate).inDays;
-                    if (_filter == 'Today') return diff == 0;
-                    if (_filter == 'Yesterday') return diff == 1;
-                    if (_filter == 'This Week') return diff >= 0 && diff < today.weekday;
-                    return true;
+                    if (range == null) return true;
+                    return !date.isBefore(range.start) && date.isBefore(range.end);
                   }).toList();
 
                   if (filtered.isEmpty) {
@@ -214,12 +174,12 @@ class _ExpensesTabState extends State<ExpensesTab> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            "No expenses for $_filter",
+                            "No expenses for ${formatPeriodLabel(_scale, _anchor)}",
                             style: AppTheme.body.copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Try a different filter.",
+                            "Try a different period.",
                             style: AppTheme.caption,
                           ),
                         ],
@@ -235,7 +195,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
                   return AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Column(
-                      key: ValueKey(_filter),
+                      key: ValueKey('${_scale.name}-${formatPeriodLabel(_scale, _anchor)}'),
                       children: [
                         Container(
                           margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -343,6 +303,119 @@ class _ExpensesTabState extends State<ExpensesTab> {
             ),
           ),
       ],
+    );
+  }
+
+  void _shiftPeriod(int direction) {
+    HapticFeedback.lightImpact();
+    setState(() => _anchor = shiftPeriod(_scale, _anchor, direction));
+  }
+
+  Widget _buildPeriodButton(
+    IconData icon, {
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          border: Border.all(color: AppTheme.borderLight, width: 1.5),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: enabled ? AppTheme.surfaceDark : AppTheme.textMuted.withValues(alpha: 0.4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPeriodHeader() {
+    final showNav = _scale != PeriodScale.all;
+    final canForward = showNav && canShiftPeriod(_scale, _anchor, DateTime.now(), 1);
+    return Container(
+      color: AppTheme.background,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              showNav
+                  ? _buildPeriodButton(
+                      Icons.chevron_left_rounded,
+                      enabled: true,
+                      onTap: () => _shiftPeriod(-1),
+                    )
+                  : const SizedBox(width: 36, height: 36),
+              Expanded(
+                child: Text(
+                  formatPeriodLabel(_scale, _anchor),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              showNav
+                  ? _buildPeriodButton(
+                      Icons.chevron_right_rounded,
+                      enabled: canForward,
+                      onTap: () => _shiftPeriod(1),
+                    )
+                  : const SizedBox(width: 36, height: 36),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _scaleLabels.entries.map((entry) {
+                final isSelected = _scale == entry.key;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _scale = entry.key);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSelected ? 20 : 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppTheme.surfaceDark : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? AppTheme.surfaceDark : AppTheme.borderLight,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        entry.value,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : AppTheme.textSecondary,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
